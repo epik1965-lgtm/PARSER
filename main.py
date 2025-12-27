@@ -165,7 +165,7 @@ async def monitor_handler(event):
     logger.info(f"📩 Message in {current_clean_id}. Watched: {watched_ids}")
 
     if current_clean_id in watched_ids:
-        text = (event.message.text or "") + (event.message.caption or "")
+        msg_text = getattr(event.message, 'text', '') or "" msg_caption = getattr(event.message, 'caption', '') or "" text = msg_text + msg_caption
         
         found = None
         for kw in CONFIG['keywords']:
@@ -195,3 +195,4 @@ async def main():
 if __name__ == '__main__':
     loop = asyncio.get_event_loop()
     loop.run_until_complete(main())
+
