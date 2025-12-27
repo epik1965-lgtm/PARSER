@@ -166,3 +166,12 @@ async def monitor_handler(event):
         msg_caption = getattr(event.message, 'caption', '') or ""
         text = msg_text + msg_caption
         # ------------------
+async def main():
+    # Отправляем тестовое сообщение при старте
+    try:
+        await bot_client.send_message(MY_USER_ID, "✅ Я перезапустился!")
+    except Exception as e:
+        logger.error(f"❌ ОШИБКА: Не могу написать тебе. Проверь MY_USER_ID. Ошибка: {e}")
+
+    await asyncio.gather(user_client.start(), bot_client.run_until_disconnected())
+
