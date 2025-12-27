@@ -124,7 +124,7 @@ async def input_handler(event):
     if state == 'WAITING_CHANNEL_ADD':
         try:
             entity = await user_client.get_entity(event.text.strip())
-            # Сохраняем "чистый" ID (без -100) для удобства
+            # Сохраняем "чистый" ID (без -100)
             clean_id = int(str(entity.id).replace('-100', ''))
             
             title = entity.title if hasattr(entity, 'title') else entity.username
@@ -151,47 +151,18 @@ async def input_handler(event):
 # --- МОНИТОРИНГ ---
 @user_client.on(events.NewMessage())
 async def monitor_handler(event):
-    # УБРАЛИ ПРОВЕРКУ event.out ЧТОБЫ ТЕСТИРОВАТЬ НА СЕБЕ
+    # НЕ ИГНОРИРУЕМ СВОИ (для теста)
     # if event.out: return
     
     chat_id = event.chat_id
-    # Нормализуем ID текущего чата
     current_clean_id = int(str(chat_id).replace('-100', ''))
     
-    # Получаем список ID для слежки
     watched_ids = [int(str(c['id']).replace('-100', '')) for c in CONFIG['channels']]
-    
-    # Логируем для проверки
     logger.info(f"📩 Message in {current_clean_id}. Watched: {watched_ids}")
 
     if current_clean_id in watched_ids:
-        msg_text = getattr(event.message, 'text', '') or "" msg_caption = getattr(event.message, 'caption', '') or "" text = msg_text + msg_caption
-        
-        found = None
-        for kw in CONFIG['keywords']:
-            if kw.lower() in text.lower():
-                found = kw
-                break
-        
-        if found:
-            try:
-                chat = await event.get_chat()
-                link = f"https://t.me/{chat.username}/{event.id}" if chat.username else f"https://t.me/c/{current_clean_id}/{event.id}"
-                
-                msg = (f"🚨 **НАЙДЕНО: {found.upper()}**\n"
-                       f"📢 {chat.title}\n"
-                       f"🔗 [Ссылка]({link})\n\n"
-                       f"{text[:200]}...")
-                
-                await bot_client.send_message(MY_USER_ID, msg, link_preview=False)
-                logger.info("🔔 ALERT SENT")
-            except Exception as e:
-                logger.error(f"Error sending alert: {e}")
-
-# --- ЗАПУСК ---
-async def main():
-    await asyncio.gather(user_client.start(), bot_client.run_until_disconnected())
-
-if __name__ == '__main__':
-    loop = asyncio.get_event_loop()
-    loop.run_until_complete(main())
+        # --- ФИКС ЗДЕСЬ ---
+        msg_text = getattr(event.message, 'text', '') or ""
+        msg_caption = getattr(event.message, 'caption', '') or ""
+        text = msg_text + msg_caption
+        # ------------------
