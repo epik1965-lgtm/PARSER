@@ -192,12 +192,28 @@ async def input_handler(event):
         await send_main_menu(event)
 
 # --- МОНИТОРИНГ (Работает фоном) ---
+# --- МОНИТОРИНГ ---
 @user_client.on(events.NewMessage())
 async def monitor_handler(event):
     if event.out: return
     
-    watched_ids = [c['id'] for c in CONFIG['channels']]
-    if event.chat_id in watched_ids:
+    # Логируем все входящие сообщения для отладки (чтобы видеть ID)
+    chat_id = event.chat_id
+    logger.info(f"📩 Новое сообщение в чате ID: {chat_id}")
+    
+    # Получаем список ID, за которыми следим
+    # Приводим всё к базовому виду (без префикса -100) для надежного сравнения
+    watched_ids = []
+    for c in CONFIG['channels']:
+        cid = c['id']
+        # Убираем префикс -100 если есть, чтобы получить "чистый" ID
+        clean_id = int(str(cid).replace('-100', ''))
+        watched_ids.append(clean_id)
+    
+    # ID текущего чата тоже чистим
+    current_clean_id = int(str(chat_id).replace('-100', ''))
+    
+    if current_clean_id in watched_ids:
         text = (event.message.text or "") + (event.message.caption or "")
         
         found_word = None
@@ -209,11 +225,10 @@ async def monitor_handler(event):
         if found_word:
             try:
                 chat = await event.get_chat()
-                # Пытаемся сделать публичную ссылку, если нет username - ссылка на приват
                 if chat.username:
                     msg_link = f"https://t.me/{chat.username}/{event.id}"
                 else:
-                    msg_link = f"https://t.me/c/{chat.id}/{event.id}".replace("-100", "")
+                    msg_link = f"https://t.me/c/{clean_id}/{event.id}"
 
                 alert_text = (
                     f"🚨 **НАЙДЕНО: {found_word.upper()}**\n\n"
@@ -223,19 +238,10 @@ async def monitor_handler(event):
                 )
                 
                 await bot_client.send_message(MY_USER_ID, alert_text, link_preview=False)
-                # Пересылка медиа (опционально, если хочешь видеть картинку сразу)
-                # await bot_client.send_message(MY_USER_ID, file=event.message.media)
+                logger.info(f"🔔 АЛЕРТ ОТПРАВЛЕН!")
                 
             except Exception as e:
                 logger.error(f"Ошибка алерта: {e}")
-
-# --- ЗАПУСК ---
-async def main():
-    await asyncio.gather(
-        user_client.start(),
-        bot_client.run_until_disconnected()
-    )
-
-if __name__ == '__main__':
-    loop = asyncio.get_event_loop()
-    loop.run_until_complete(main())
+    else:
+        # Если ID не совпал, пишем в лог, почему (для отладки)
+        logger.info(f"⚠️ Чат {current_clean_id} не в списке {watched_ids}")
